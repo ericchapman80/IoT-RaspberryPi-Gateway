@@ -13,9 +13,9 @@ exports.metrics = {
 }
 
 exports.events = {
-  temperatureSMSLimiter : { label:'THAlert : SMS Limited', icon:'comment', descr:'Send SMS when F>75°, once per hour', 
+  temperatureSMSLimiter : { label:'Weather Alert : High Temp Alert (SMS Limited)', icon:'comment', descr:'Send SMS when F>100°, once per hour', 
     serverExecute:function(node) { 
-      if (node.metrics['F'] && node.metrics['F'].value > 75 && (Date.now() - node.metrics['F'].updated < 2000)) /*check if M metric exists and value is MOTION, received less than 2s ago*/
+      if (node.metrics['F'] && node.metrics['F'].value > 100 && (Date.now() - node.metrics['F'].updated < 2000)) /*check if M metric exists and value is MOTION, received less than 2s ago*/
       {
         var approveSMS = false;
         if (node.metrics['F'].lastSMS) /*check if lastSMS value is not NULL ... */
@@ -33,10 +33,37 @@ exports.events = {
         if (approveSMS)
         {
           node.metrics['F'].lastSMS = Date.now();
-          sendSMS('Temperature > 75° !', 'Temperature alert (>75°F!): [' + node._id + ':' + node.label.replace(/\{.+\}/ig, '') + '] @ ' + new Date().toLocaleTimeString());
+          sendSMS('Temperature > 100° !', 'Temperature alert (>100°F!): [' + node._id + ':' + node.label.replace(/\{.+\}/ig, '') + '] @ ' + new Date().toLocaleTimeString());
           db.update({ _id: node._id }, { $set : node}, {}, function (err, numReplaced) { console.log('   ['+node._id+'] DB-Updates:' + numReplaced);}); /*save lastSMS timestamp to DB*/
         }
-        else console.log('   ['+node._id+'] THAlert SMS skipped.');
+        else console.log('   ['+node._id+'] Weather Alert - High Temp SMS skipped.');
+      };
+    }
+  },
+  lowTemperatureSMSLimiter : { label:'Weather Alert : Low Temp Alert (SMS Limited)', icon:'comment', descr:'Send SMS when F < 32°, once per hour', 
+    serverExecute:function(node) { 
+      if (node.metrics['F'] && node.metrics['F'].value < 32 && (Date.now() - node.metrics['F'].updated < 2000)) /*check if M metric exists and value is MOTION, received less than 2s ago*/
+      {
+        var approveSMS = false;
+        if (node.metrics['F'].lastSMS) /*check if lastSMS value is not NULL ... */
+        {
+          if (Date.now() - node.metrics['F'].lastSMS > 1800000) /*check if lastSMS timestamp is more than 1hr ago*/
+          {
+            approveSMS = true;
+          }
+        }
+        else
+        {
+          approveSMS = true;
+        }
+        
+        if (approveSMS)
+        {
+          node.metrics['F'].lastSMS = Date.now();
+          sendSMS('Temperature < 32° !', 'Temperature alert (<32°F!): [' + node._id + ':' + node.label.replace(/\{.+\}/ig, '') + '] @ ' + new Date().toLocaleTimeString());
+          db.update({ _id: node._id }, { $set : node}, {}, function (err, numReplaced) { console.log('   ['+node._id+'] DB-Updates:' + numReplaced);}); /*save lastSMS timestamp to DB*/
+        }
+        else console.log('   ['+node._id+'] Weather Alert - Low Temp SMS skipped.');
       };
     }
   },
