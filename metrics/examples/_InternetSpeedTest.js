@@ -20,7 +20,7 @@ exports.events = {
     label:'Internet : Speed Test Poll',
     icon:'fa-heartbeat', //tons of awesome icons at https://fontawesome.com/
     descr:'Poll Internet Speed via speedtest-net package',
-    nextSchedule: function(nodeAtScheduleTime) { return 300000; }, //runs every 5min
+    nextSchedule: function(nodeAtScheduleTime) { return 3600000; }, //runs every 60min
     scheduledExecute: function(nodeAtScheduleTime) {
       db.findOne({ _id : nodeAtScheduleTime._id }, function (err, nodeRightNow) {
         if (nodeRightNow)

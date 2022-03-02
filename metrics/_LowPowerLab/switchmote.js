@@ -11,9 +11,9 @@ exports.metrics = {
 }
 
 exports.events = {
-  switchMoteON_PM : { label:'SwitchMote ON at sunset!', icon:'clock', descr:'Turn this switch ON at sunset', nextSchedule:function(node) { return millisToFutureDate(nextSunriseOrSunset(0), ONEDAY*2); }, scheduledExecute:function(node) { sendMessageToNode({nodeId:node._id, action:'BTN1:1'}); } },
-  switchMoteOFF_AM : { label:'SwitchMote OFF at sunrise!', icon:'clock', descr:'Turn this switch OFF at sunrise', nextSchedule:function(node) { return millisToFutureDate(nextSunriseOrSunset(1), ONEDAY*2); }, scheduledExecute:function(node) { sendMessageToNode({nodeId:node._id, action:'BTN1:0'}); } },
-  switchMoteONBUZZ : { label:'SwitchMote ON Buzzer beep!', icon:'clock', descr:'Buzz gateway when switchmote is ON',  serverExecute:function(node) { if (node.metrics['B1'] && node.metrics['B1'].value == 'ON' && (Date.now() - new Date(node.metrics['B1'].updated).getTime() < 2000)) { setTimeout(function() { sendMessageToGateway('BEEP'); }, 5); } }},
+  switchMoteON_PM : { label:'SwitchMote : ON at sunset!', icon:'clock', descr:'Turn this switch ON at sunset', nextSchedule:function(node) { return millisToFutureDate(nextSunriseOrSunset(0), ONEDAY*2); }, scheduledExecute:function(node) { sendMessageToNode({nodeId:node._id, action:'BTN1:1'}); } },
+  switchMoteOFF_AM : { label:'SwitchMote : OFF at sunrise!', icon:'clock', descr:'Turn this switch OFF at sunrise', nextSchedule:function(node) { return millisToFutureDate(nextSunriseOrSunset(1), ONEDAY*2); }, scheduledExecute:function(node) { sendMessageToNode({nodeId:node._id, action:'BTN1:0'}); } },
+  switchMoteONBUZZ : { label:'SwitchMote : ON Buzzer beep!', icon:'clock', descr:'Buzz gateway when switchmote is ON',  serverExecute:function(node) { if (node.metrics['B1'] && node.metrics['B1'].value == 'ON' && (Date.now() - new Date(node.metrics['B1'].updated).getTime() < 2000)) { setTimeout(function() { sendMessageToGateway('BEEP'); }, 5); } }},
 }
 
 exports.motes = {

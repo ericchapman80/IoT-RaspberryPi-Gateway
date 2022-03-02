@@ -67,14 +67,14 @@ exports.metrics = {
 }
 
 exports.events = {
-  thermostatPoll : { label:'Thermostat status poll', icon:'fa-heartbeat', descr:'Poll thermostat status (HTTP GET)',
+  thermostatPoll : { label:'Thermostat : Status Poll', icon:'fa-heartbeat', descr:'Poll thermostat status (HTTP GET)',
     nextSchedule:function(node) { return 30000; },
     scheduledExecute:function(node) {
       tstatPoll(node._id);
     }
   },
 
-  thermostat_H68_AM : { label:'Thermostat heat 68° @ 8AM weekdays', icon:'clock', descr:'Request heat point of 68° weekdays at 8am',
+  thermostat_H68_AM : { label:'Thermostat : Thermostat heat 68° @ 8AM weekdays', icon:'clock', descr:'Request heat point of 68° weekdays at 8am',
     nextSchedule:function(node) { return timeoutOffset(8,0); }, //ie 8:00 (8am)
     scheduledExecute:function(node) {
       if ([1,2,3,4,5].indexOf(new Date().getDay())>-1 /*Monday=1..Friday=5,*/)
@@ -90,7 +90,7 @@ exports.events = {
     }
   },
 
-  thermostat_H73_PM : { label:'Thermostat heat 73° @ 4:00PM weekdays', icon:'clock', descr:'Request heat point of 73° weekdays at 4pm',
+  thermostat_H73_PM : { label:'Thermostat : Thermostat heat 73° @ 4:00PM weekdays', icon:'clock', descr:'Request heat point of 73° weekdays at 4pm',
     nextSchedule:function(node) { return timeoutOffset(16,0); }, //ie 16:00 (4pm)
     scheduledExecute:function(node) {
       if ([1,2,3,4,5].indexOf(new Date().getDay())>-1 /*Monday=1..Friday=5,*/)

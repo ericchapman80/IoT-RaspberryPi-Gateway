@@ -115,9 +115,9 @@ exports.motes = {
 }
 
 //example of overriding an event
-exports.events = {
-  sprinklersEvenDays : { label:'Even days Z1-9 @730AM', icon:'clock', descr:'Run Zones 1-9, even days @7:30AM', nextSchedule:function(node) { return timeoutOffset(7,30); }, scheduledExecute:function(node) { if ((new Date().getDate()%2)==0) sendMessageToNode({nodeId:node._id, action:'PRG 1:400 2:400 3:400 4:300 5:400 6:400 7:400 8:300 9:150' /*runs stations 1-5*/}); } },
-  sprinklers6and7_8am : { label:'Sprinklers Z6-7 200s 8am daily', icon:'clock', descr:'Run Z6-7 200s @ 8am', nextSchedule:function(node) { return timeoutOffset(8,00); }, scheduledExecute:function(node) { sendMessageToNode({nodeId:node._id, action:'PRG 6:200 7:200' /*runs stations 6-7 (200sec each, daily))*/}); } },
-  sprinklers6and7_3pm : { label:'Sprinklers Z6-7 200s 3pm daily', icon:'clock', descr:'Run Z6-7 200s @ 3am', nextSchedule:function(node) { return timeoutOffset(15,00); }, scheduledExecute:function(node) { sendMessageToNode({nodeId:node._id, action:'PRG 6:200 7:200' /*runs stations 6-7 (200sec each, daily))*/}); } },
-  motionLightON27 : { label:'Motion: SM27 ON!', icon:'action', descr:'Turn SwitchMote:27 ON when MOTION is detected', serverExecute:function(node) { if (node.metrics['M'] && node.metrics['M'].value == 'MOTION' && (Date.now() - new Date(node.metrics['M'].updated).getTime() < 2000)) { sendMessageToNode({nodeId:27, action:'MOT:1'}); }; } },
-};
+//exports.events = {
+  //sprinklersEvenDays : { label:'Even days Z1-9 @730AM', icon:'clock', descr:'Run Zones 1-9, even days @7:30AM', nextSchedule:function(node) { return timeoutOffset(7,30); }, scheduledExecute:function(node) { if ((new Date().getDate()%2)==0) sendMessageToNode({nodeId:node._id, action:'PRG 1:400 2:400 3:400 4:300 5:400 6:400 7:400 8:300 9:150' /*runs stations 1-5*/}); } },
+  //sprinklers6and7_8am : { label:'Sprinklers Z6-7 200s 8am daily', icon:'clock', descr:'Run Z6-7 200s @ 8am', nextSchedule:function(node) { return timeoutOffset(8,00); }, scheduledExecute:function(node) { sendMessageToNode({nodeId:node._id, action:'PRG 6:200 7:200' /*runs stations 6-7 (200sec each, daily))*/}); } },
+  //sprinklers6and7_3pm : { label:'Sprinklers Z6-7 200s 3pm daily', icon:'clock', descr:'Run Z6-7 200s @ 3am', nextSchedule:function(node) { return timeoutOffset(15,00); }, scheduledExecute:function(node) { sendMessageToNode({nodeId:node._id, action:'PRG 6:200 7:200' /*runs stations 6-7 (200sec each, daily))*/}); } },
+  //motionLightON27 : { label:'Motion: SM27 ON!', icon:'action', descr:'Turn SwitchMote:27 ON when MOTION is detected', serverExecute:function(node) { if (node.metrics['M'] && node.metrics['M'].value == 'MOTION' && (Date.now() - new Date(node.metrics['M'].updated).getTime() < 2000)) { sendMessageToNode({nodeId:27, action:'MOT:1'}); }; } },
+//};

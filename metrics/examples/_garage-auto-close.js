@@ -4,7 +4,7 @@
 //For safety, it sends UP TO 3x messages between this time frame - in case the GarageMote sensors are not aligned well or malfunction (causing OPEN, CLOSING.., OPEN alternations).
 
 //example of overriding an event
-exports.events = {
+/* exports.events = {
   garageAutoClose: {
     label:'Garage : Auto-CLOSE between [11PM,6AM]',
     icon:'comment',
@@ -21,7 +21,7 @@ exports.events = {
           if (nodeRightNow.metrics['Status'] &&
               nodeRightNow.metrics['Status'].value == 'OPEN') {
 
-            /* Only automatically close between 11pm and 6am */
+            // Only automatically close between 11pm and 6am //
             if ((nowDate.getHours() >= 23 || nowDate.getHours() <= 6) && nodeRightNow.metrics['Status'].closeCount < 3) {
 
               if (nodeRightNow.metrics['Status'].openDate == null) {
@@ -29,12 +29,12 @@ exports.events = {
                 nodeUpdated = true;
               };
 
-              /* Elapsed time in minutes */
+              // Elapsed time in minutes //
               var elapsedTimeMinutes = Math.round(((nowDate - nodeRightNow.metrics['Status'].openDate)) / (60*1000));
               console.log('GARAGE SHOULD BE CLOSED ' + elapsedTimeMinutes);
               console.log('GARAGE OPEN timestamp: ' + nodeRightNow.metrics['Status'].openDate);
 
-              /* Close the door if open more than 10 minutes */
+              // Close the door if open more than 10 minutes //
               if (elapsedTimeMinutes >= 10) {
                 sendMessageToNode({nodeId:nodeRightNow._id, action:'CLS'});
                 nodeRightNow.metrics['Status'].closeCount++;
@@ -51,7 +51,7 @@ exports.events = {
             nodeUpdated = true;
           };
 
-          /* Reset the close count */
+          // Reset the close count //
           if ((nowDate.getHours() < 23 && nowDate.getHours() > 6 && nodeRightNow.metrics['Status'].closeCount > 0) || nodeRightNow.metrics['Status'].closeCount == null) {
             nodeRightNow.metrics['Status'].closeCount = 0;
             nodeUpdated = true;
@@ -64,4 +64,4 @@ exports.events = {
       });
     },
   }
-}
+} */

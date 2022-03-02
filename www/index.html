@@ -2176,7 +2176,7 @@
       $("#addEventType").empty();
       $('#addEventType').append('<option value="">Select type...</option>');
       eventTypes = Object.keys(eventsDef);
-      eventTypes.sort();
+      eventTypes.sort((a, b) => a.label - b.label);
       for(var key in eventTypes)
       {
         key = eventTypes[key];
