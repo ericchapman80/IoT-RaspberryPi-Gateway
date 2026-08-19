@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0b0f14">
+  <title>CHAP Gateway · IoT Control Plane</title>
+  <link rel="icon" href="/images/favicon.ico">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/socket.io/socket.io.js" defer></script>
+  <script type="module" src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <aside class="sidebar" aria-label="Primary">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="28" height="28">
+          <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#60a5fa"/>
+          </linearGradient></defs>
+          <path d="M16 3 L27 9 V23 L16 29 L5 23 V9 Z" fill="none" stroke="url(#lg)" stroke-width="2"/>
+          <circle cx="16" cy="16" r="3.4" fill="url(#lg)"/>
+          <path d="M16 12.6 V6.4 M16 19.4 V25.6 M19.4 16 H25.6 M12.6 16 H6.4"
+                stroke="url(#lg)" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="brand-title">CHAP</div>
+        <div class="brand-sub">Gateway · Preview</div>
+      </div>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="#overview" class="nav-item is-active" data-view="overview">
+        <span class="nav-ico" aria-hidden="true">◐</span><span>Overview</span>
+      </a>
+      <a href="#devices" class="nav-item" data-view="devices">
+        <span class="nav-ico" aria-hidden="true">▦</span><span>Devices</span>
+        <span class="nav-count" data-slot="deviceCount">0</span>
+      </a>
+      <a href="#network" class="nav-item" data-view="network">
+        <span class="nav-ico" aria-hidden="true">↯</span><span>Network</span>
+      </a>
+      <a href="#events" class="nav-item" data-view="events">
+        <span class="nav-ico" aria-hidden="true">≡</span><span>Events</span>
+        <span class="nav-count" data-slot="eventCount">0</span>
+      </a>
+      <a href="#settings" class="nav-item" data-view="settings">
+        <span class="nav-ico" aria-hidden="true">⚙</span><span>Settings</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-foot">
+      <button id="themeToggle" class="ghost" title="Toggle light / dark">
+        <span data-slot="themeLabel">Light mode</span>
+      </button>
+      <a class="ghost" href="/legacy/" title="Open the original UI">Legacy UI ↗</a>
+    </div>
+  </aside>
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1 class="view-title" data-slot="viewTitle">Overview</h1>
+      <span class="view-sub" data-slot="viewSub">Real-time state of the CHAP gateway</span>
+    </div>
+    <div class="topbar-right">
+      <div class="pill" id="connPill" data-state="connecting" title="Socket.IO connection">
+        <span class="pill-dot"></span><span data-slot="connLabel">Connecting…</span>
+      </div>
+      <div class="pill subtle" title="Last data received">
+        <span class="pill-ico" aria-hidden="true">◷</span>
+        <span data-slot="lastRx">—</span>
+      </div>
+      <div class="pill subtle" title="Gateway uptime">
+        <span class="pill-ico" aria-hidden="true">↥</span>
+        <span data-slot="uptime">—</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="main">
+    <!-- Overview -->
+    <section class="view" data-view="overview" hidden>
+      <div class="kpi-row">
+        <article class="kpi">
+          <div class="kpi-label">Gateway</div>
+          <div class="kpi-value"><span data-slot="kpi-status">—</span></div>
+          <div class="kpi-sub" data-slot="kpi-mode">preview mode</div>
+        </article>
+        <article class="kpi">
+          <div class="kpi-label">Devices online</div>
+          <div class="kpi-value"><span data-slot="kpi-devices">0</span></div>
+          <div class="kpi-sub" data-slot="kpi-devices-sub">discovered nodes</div>
+        </article>
+        <article class="kpi">
+          <div class="kpi-label">Live metrics</div>
+          <div class="kpi-value"><span data-slot="kpi-metrics">0</span></div>
+          <div class="kpi-sub">across all devices</div>
+        </article>
+        <article class="kpi">
+          <div class="kpi-label">Last data</div>
+          <div class="kpi-value"><span data-slot="kpi-lastRx">—</span></div>
+          <div class="kpi-sub">since page load</div>
+        </article>
+      </div>
+
+      <div class="section-head">
+        <h2>Pinned metrics</h2>
+        <div class="hint">Auto-populated from each device's <code>pin:1</code> metrics</div>
+      </div>
+      <div class="grid" id="pinnedGrid" data-empty="No pinned metrics yet — waiting for the gateway…"></div>
+
+      <div class="section-head">
+        <h2>Recent activity</h2>
+        <a href="#events" class="hint link">See all events →</a>
+      </div>
+      <div class="events" id="overviewEvents" data-empty="No events yet."></div>
+    </section>
+
+    <!-- Devices -->
+    <section class="view" data-view="devices" hidden>
+      <div class="toolbar">
+        <input type="search" id="deviceFilter" class="input" placeholder="Filter devices…" aria-label="Filter devices">
+        <div class="seg" role="tablist" aria-label="Status filter">
+          <button class="seg-btn is-active" data-status="all">All</button>
+          <button class="seg-btn" data-status="online">Online</button>
+          <button class="seg-btn" data-status="stale">Stale</button>
+          <button class="seg-btn" data-status="offline">Offline</button>
+        </div>
+      </div>
+      <div class="grid" id="devicesGrid" data-empty="No devices discovered yet."></div>
+    </section>
+
+    <!-- Network -->
+    <section class="view" data-view="network" hidden>
+      <div class="net-hero" id="netHero" data-empty="No network telemetry available yet.">
+        <div class="net-card">
+          <div class="net-label">Download</div>
+          <div class="net-value"><span data-slot="net-down">—</span> <span class="net-unit">Mbps</span></div>
+          <div class="net-bar"><i style="width:0%" data-slot="net-down-bar"></i></div>
+        </div>
+        <div class="net-card">
+          <div class="net-label">Upload</div>
+          <div class="net-value"><span data-slot="net-up">—</span> <span class="net-unit">Mbps</span></div>
+          <div class="net-bar accent-2"><i style="width:0%" data-slot="net-up-bar"></i></div>
+        </div>
+        <div class="net-card">
+          <div class="net-label">Latency</div>
+          <div class="net-value"><span data-slot="net-ping">—</span> <span class="net-unit">ms</span></div>
+          <div class="net-bar accent-3"><i style="width:0%" data-slot="net-ping-bar"></i></div>
+        </div>
+      </div>
+      <div class="section-head"><h2>Other network devices</h2></div>
+      <div class="grid" id="netExtraGrid" data-empty="Add more network devices to see them here."></div>
+    </section>
+
+    <!-- Events -->
+    <section class="view" data-view="events" hidden>
+      <div class="toolbar">
+        <input type="search" id="eventFilter" class="input" placeholder="Filter events…" aria-label="Filter events">
+        <div class="seg" role="tablist" aria-label="Level filter">
+          <button class="seg-btn is-active" data-level="all">All</button>
+          <button class="seg-btn" data-level="info">Info</button>
+          <button class="seg-btn" data-level="warn">Warn</button>
+          <button class="seg-btn" data-level="error">Error</button>
+        </div>
+      </div>
+      <div class="events events-full" id="eventsList" data-empty="No events captured yet."></div>
+    </section>
+
+    <!-- Settings -->
+    <section class="view" data-view="settings" hidden>
+      <div class="cards-2">
+        <article class="panel">
+          <h3>Gateway</h3>
+          <dl class="kv">
+            <dt>Mode</dt><dd><span data-slot="set-mode">—</span></dd>
+            <dt>Host</dt><dd><span data-slot="set-host">—</span></dd>
+            <dt>Started</dt><dd><span data-slot="set-started">—</span></dd>
+            <dt>Uptime</dt><dd><span data-slot="set-uptime">—</span></dd>
+            <dt>Production-safe</dt><dd><span data-slot="set-safe">—</span></dd>
+          </dl>
+        </article>
+        <article class="panel">
+          <h3>Socket.IO contract</h3>
+          <p class="hint">The gateway broadcasts these events. The UI is driven entirely by them — no hardcoded devices or metrics.</p>
+          <ul class="tags">
+            <li>MOTESDEF</li><li>METRICSDEF</li><li>EVENTSDEF</li>
+            <li>SETTINGSDEF</li><li>SERVERTIME</li><li>UPDATENODES</li>
+            <li>UPDATENODE</li><li>LOG</li>
+          </ul>
+        </article>
+        <article class="panel">
+          <h3>Known mote types</h3>
+          <div class="mote-list" id="moteTypeList" data-empty="Waiting for MOTESDEF…"></div>
+        </article>
+        <article class="panel">
+          <h3>Known metric definitions</h3>
+          <div class="metric-list" id="metricDefList" data-empty="Waiting for METRICSDEF…"></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <template id="tpl-device-card">
+    <article class="card device-card" data-node-id>
+      <header class="card-head">
+        <img class="card-icon" alt="" data-slot="icon">
+        <div class="card-title">
+          <div class="card-title-main" data-slot="label">Device</div>
+          <div class="card-title-sub"><span data-slot="type">—</span> · <span data-slot="id">#—</span></div>
+        </div>
+        <span class="status-dot" data-slot="status" title="online"></span>
+      </header>
+      <div class="card-metrics" data-slot="metrics"></div>
+      <footer class="card-foot">
+        <span class="age" data-slot="age">just now</span>
+      </footer>
+    </article>
+  </template>
+
+  <template id="tpl-metric-tile">
+    <div class="metric-tile" data-metric-key>
+      <div class="metric-name" data-slot="name">—</div>
+      <div class="metric-value">
+        <span class="metric-num" data-slot="value">—</span><span class="metric-unit" data-slot="unit"></span>
+      </div>
+    </div>
+  </template>
+
+  <template id="tpl-event-row">
+    <div class="event-row" data-slot-root>
+      <span class="event-time" data-slot="time">—</span>
+      <span class="event-level" data-slot="level">info</span>
+      <span class="event-msg" data-slot="msg">—</span>
+    </div>
+  </template>
+</body>
+</html>
