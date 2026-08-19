@@ -82,7 +82,6 @@
   </header>
 
   <main id="main" class="main">
-    <!-- Overview -->
     <section class="view" data-view="overview" hidden>
       <div class="kpi-row">
         <article class="kpi">
@@ -109,7 +108,7 @@
 
       <div class="section-head">
         <h2>Pinned metrics</h2>
-        <div class="hint">Auto-populated from each device's <code>pin:1</code> metrics</div>
+        <div class="hint">Auto-populated from each device's <code>pin:1</code> metrics · click a card for detail</div>
       </div>
       <div class="grid" id="pinnedGrid" data-empty="No pinned metrics yet — waiting for the gateway…"></div>
 
@@ -120,7 +119,6 @@
       <div class="events" id="overviewEvents" data-empty="No events yet."></div>
     </section>
 
-    <!-- Devices -->
     <section class="view" data-view="devices" hidden>
       <div class="toolbar">
         <input type="search" id="deviceFilter" class="input" placeholder="Filter devices…" aria-label="Filter devices">
@@ -134,7 +132,6 @@
       <div class="grid" id="devicesGrid" data-empty="No devices discovered yet."></div>
     </section>
 
-    <!-- Network -->
     <section class="view" data-view="network" hidden>
       <div class="net-hero" id="netHero" data-empty="No network telemetry available yet.">
         <div class="net-card">
@@ -157,7 +154,6 @@
       <div class="grid" id="netExtraGrid" data-empty="Add more network devices to see them here."></div>
     </section>
 
-    <!-- Events -->
     <section class="view" data-view="events" hidden>
       <div class="toolbar">
         <input type="search" id="eventFilter" class="input" placeholder="Filter events…" aria-label="Filter events">
@@ -171,7 +167,6 @@
       <div class="events events-full" id="eventsList" data-empty="No events captured yet."></div>
     </section>
 
-    <!-- Settings -->
     <section class="view" data-view="settings" hidden>
       <div class="cards-2">
         <article class="panel">
@@ -190,7 +185,7 @@
           <ul class="tags">
             <li>MOTESDEF</li><li>METRICSDEF</li><li>EVENTSDEF</li>
             <li>SETTINGSDEF</li><li>SERVERTIME</li><li>UPDATENODES</li>
-            <li>UPDATENODE</li><li>LOG</li>
+            <li>UPDATENODE</li><li>LOG</li><li>GETGRAPHDATA</li><li>GRAPHDATAREADY</li>
           </ul>
         </article>
         <article class="panel">
@@ -205,19 +200,64 @@
     </section>
   </main>
 
+  <!-- Slide-in device detail drawer -->
+  <aside class="drawer" id="drawer" aria-hidden="true" aria-label="Device detail">
+    <div class="drawer-scrim" data-close></div>
+    <div class="drawer-panel" role="dialog" aria-modal="true">
+      <header class="drawer-head">
+        <img class="drawer-icon" alt="" data-slot="dr-icon">
+        <div class="drawer-title">
+          <input class="drawer-label" data-slot="dr-label" type="text" aria-label="Device label">
+          <div class="drawer-sub"><span data-slot="dr-type">—</span> · <span data-slot="dr-id">#—</span></div>
+        </div>
+        <button class="icon-btn" data-close aria-label="Close">×</button>
+      </header>
+
+      <div class="drawer-meta">
+        <div class="chip" data-slot="dr-status">online</div>
+        <div class="chip subtle" data-slot="dr-updated">—</div>
+        <div class="chip subtle" data-slot="dr-rssi" hidden>—</div>
+        <div class="chip warn" data-slot="dr-battery" hidden>low battery</div>
+      </div>
+
+      <section class="drawer-section" data-slot="dr-controls-section" hidden>
+        <h4>Controls</h4>
+        <div class="controls" data-slot="dr-controls"></div>
+      </section>
+
+      <section class="drawer-section">
+        <h4>Metrics</h4>
+        <div class="metric-detail-list" data-slot="dr-metrics"></div>
+      </section>
+
+      <section class="drawer-section">
+        <h4>Danger zone</h4>
+        <button class="btn danger" id="dr-delete-node">Delete node from gateway</button>
+        <p class="hint">Removes this node from the gateway database. It will re-appear if it broadcasts again.</p>
+      </section>
+    </div>
+  </aside>
+
+  <!-- Templates -->
   <template id="tpl-device-card">
-    <article class="card device-card" data-node-id>
+    <article class="card device-card" tabindex="0" role="button" data-node-id>
       <header class="card-head">
         <img class="card-icon" alt="" data-slot="icon">
         <div class="card-title">
           <div class="card-title-main" data-slot="label">Device</div>
           <div class="card-title-sub"><span data-slot="type">—</span> · <span data-slot="id">#—</span></div>
         </div>
-        <span class="status-dot" data-slot="status" title="online"></span>
+        <div class="card-right">
+          <span class="rssi" data-slot="rssi" hidden></span>
+          <span class="batt" data-slot="batt" hidden title="Battery">—</span>
+          <span class="status-dot" data-slot="status" title="online"></span>
+        </div>
       </header>
       <div class="card-metrics" data-slot="metrics"></div>
+      <div class="card-controls" data-slot="quick-controls"></div>
       <footer class="card-foot">
         <span class="age" data-slot="age">just now</span>
+        <span class="hint">Click for detail →</span>
       </footer>
     </article>
   </template>
@@ -231,12 +271,40 @@
     </div>
   </template>
 
+  <template id="tpl-metric-detail">
+    <div class="metric-detail" data-metric-key>
+      <div class="metric-detail-head">
+        <div>
+          <div class="metric-detail-name" data-slot="name">—</div>
+          <div class="metric-detail-value">
+            <span class="metric-num" data-slot="value">—</span><span class="metric-unit" data-slot="unit"></span>
+          </div>
+        </div>
+        <div class="metric-detail-meta">
+          <span class="chip subtle" data-slot="range">min — max</span>
+          <div class="metric-detail-toggles">
+            <label class="toggle"><input type="checkbox" data-slot="pin"> pin</label>
+            <label class="toggle"><input type="checkbox" data-slot="graph"> graph</label>
+            <button class="icon-btn small" data-slot="delete" title="Delete metric">✕</button>
+          </div>
+        </div>
+      </div>
+      <canvas class="sparkline" data-slot="spark" height="80"></canvas>
+    </div>
+  </template>
+
   <template id="tpl-event-row">
     <div class="event-row" data-slot-root>
       <span class="event-time" data-slot="time">—</span>
       <span class="event-level" data-slot="level">info</span>
       <span class="event-msg" data-slot="msg">—</span>
     </div>
+  </template>
+
+  <template id="tpl-control-btn">
+    <button class="ctrl-btn" data-action data-key>
+      <span data-slot="label">Action</span>
+    </button>
   </template>
 </body>
 </html>
