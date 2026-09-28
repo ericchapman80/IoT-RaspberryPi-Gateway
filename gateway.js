@@ -80,7 +80,9 @@ if (replayMode) {
     replayIndex = (replayIndex + 1) % replayLines.length;
     setTimeout(replayNext, replayInterval);
   };
-  replayNext();
+  // processSerialData is defined later in this file; defer the first replay
+  // tick until the module has finished loading all gateway functions.
+  setImmediate(replayNext);
 } else {
   serialport.list().then(ports => { ports.forEach(function(port) { console.info(`Available serial port: ${JSON.stringify(port)}`) }); });
 }
