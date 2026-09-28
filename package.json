@@ -30,6 +30,7 @@
   },
   "scripts": {
     "preinstall": "",
-    "start": "node gateway.js"
+    "start": "node gateway.js",
+    "test": "node test/metrics-fixtures.js"
   }
 }

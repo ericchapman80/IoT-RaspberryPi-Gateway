@@ -33,3 +33,74 @@ https://www.youtube.com/watch?v=F15dEqZ4pMM
 
 ### 3rd party custom gateway setup overview
 https://www.youtube.com/watch?v=DP83RJeTpUY
+
+## Modern development and deployment
+
+The GitHub repository is the source of truth. The Raspberry Pi should run a
+clean checkout of a reviewed commit; credentials, runtime configuration,
+databases, logs, and TLS keys must remain outside Git.
+
+The supported runtime is pinned in `.nvmrc` (`Node.js v17.4.0`, matching the
+current Pi 3 deployment and `serialport~9.0.7`). Install and test with:
+
+```bash
+nvm install
+nvm use
+npm ci
+npm test
+```
+
+The test command exercises fixture coverage for every bundled node module
+without opening the serial device or modifying a database.
+
+### Health and live telemetry
+
+The gateway exposes an authenticated `/healthz` endpoint through nginx. It
+reports the running version, uptime, replay status, serial port, and age of
+the last telemetry packet. The `/httpendpoint/` route accepts the existing
+query-string ingestion format and broadcasts accepted values to connected
+Socket.IO clients.
+
+### Safe serial replay
+
+Replay mode lets a second instance exercise the UI and realtime pipeline
+without opening the production radio device:
+
+```bash
+GATEWAY_DB_DIR=data/replay-db \
+GATEWAY_SOCKET_PORT=8180 \
+GATEWAY_HTTP_ENDPOINT_PORT=8181 \
+GATEWAY_REPLAY_FILE=test/fixtures/weather.log \
+GATEWAY_REPLAY_INTERVAL_MS=2000 \
+npm start
+```
+
+Use a separate nginx location or SSH tunnel for the replay ports. Never point
+the replay instance at the production `data/db` directory.
+
+### Authentication guidance
+
+The current deployment uses nginx TLS plus HTTP Basic Authentication and an
+htpasswd file. This is acceptable for a private LAN when the Pi firewall and
+nginx allowlist are maintained, but it is not appropriate to expose directly
+to the public Internet. For any externally reachable ingestion endpoint, set
+`GATEWAY_API_TOKEN`; `/healthz` and `/httpendpoint/` then require:
+
+```text
+Authorization: Bearer <token>
+```
+
+Use a long random token stored in the service environment or a root-readable
+environment file, never in `settings.json5` or Git. A future auth upgrade
+should replace Basic Auth with an identity-aware reverse proxy or mutual TLS,
+while preserving the private-LAN deployment option.
+
+### Production deployment workflow
+
+1. Review and merge the GitHub pull request.
+2. On the Pi, back up `data/`, `settings.json5`, `data/secure/`, and the systemd/nginx configuration.
+3. Fetch the merged commit into a release directory.
+4. Run `npm ci` and `npm test` before switching the service.
+5. Stop the service briefly, switch the `/home/pi/gateway` symlink or checkout, and start it again.
+6. Verify `/healthz`, the UI, Socket.IO updates, and a real weather packet.
+7. Keep the previous release available for rollback until telemetry has been confirmed.

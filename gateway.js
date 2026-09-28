@@ -32,18 +32,25 @@
 var nconf = require('nconf');                                   //https://github.com/indexzero/nconf
 var JSON5 = require('json5');                                   //https://github.com/aseemk/json5
 var path = require('path');
-var dbDir = 'data/db';
+var dbDir = process.env.GATEWAY_DB_DIR || 'data/db';
 var packageJson = require('./package.json')
 var coreMetricsFilePath = './metrics/core.js';
-nconf.argv().file({ file: './settings.json5', format: JSON5 });
+nconf.argv().file({ file: process.env.GATEWAY_SETTINGS_FILE || './settings.json5', format: JSON5 });
 global.settings = nconf.get('settings');
 var dbLog = require('./logUtil.js');
-io = require('socket.io')().listen(settings.general.socketPort.value)    //usage in 2.3.0:  io = require('socket.io').listen(settings.general.socketPort.value);
+var socketPort = Number(process.env.GATEWAY_SOCKET_PORT || settings.general.socketPort.value);
+var httpEndpointPort = Number(process.env.GATEWAY_HTTP_ENDPOINT_PORT || 8081);
+var httpEndpointHost = process.env.GATEWAY_HTTP_ENDPOINT_HOST || '127.0.0.1';
+var replayMode = Boolean(process.env.GATEWAY_REPLAY_FILE);
+var lastTelemetryAt = null;
+var gatewayStartedAt = Date.now();
+io = require('socket.io')().listen(socketPort)    //usage in 2.3.0:  io = require('socket.io').listen(socketPort);
 var serialport = require("serialport");                         //https://github.com/node-serialport/node-serialport
 var Datastore = require('nedb');                                //https://github.com/louischatriot/nedb
 var nodemailer = require('nodemailer');                         //https://github.com/andris9/Nodemailer
 var http = require('http');
 var url = require('url');
+var crypto = require('crypto');
 db = new Datastore({ filename: path.join(__dirname, dbDir, settings.database.name.value), autoload: true });       //used to keep all node/metric data
 var dbCompacted = Date.now();
 var fs = require('fs');
@@ -57,14 +64,28 @@ if (settings.database.nonMatchesName.value)
 require("console-stamp")(console, settings.general.consoleLogDateFormat.value); //timestamp logs - https://github.com/starak/node-console-stamp
 
 //HTTP ENDPOINT - accept HTTP: data from the internet/LAN
-http.createServer(httpEndPointHandler).listen(8081);
+http.createServer(gatewayHttpHandler).listen(httpEndpointPort, httpEndpointHost);
 
 console.info('*********************************************************************');
 console.info('************************* GATEWAY APP START *************************');
 console.info('*********************************************************************');
-serialport.list().then(ports => { ports.forEach(function(port) { console.info(`Available serial port: ${JSON.stringify(port)}`) }); });
+if (replayMode) {
+  console.info(`REPLAY MODE: ${process.env.GATEWAY_REPLAY_FILE}`);
+  var replayLines = fs.readFileSync(process.env.GATEWAY_REPLAY_FILE, 'utf8').split(/\r?\n/).filter(Boolean);
+  var replayIndex = 0;
+  var replayInterval = Number(process.env.GATEWAY_REPLAY_INTERVAL_MS || 1000);
+  var replayNext = function () {
+    if (replayLines.length === 0) return;
+    processSerialData(replayLines[replayIndex], true);
+    replayIndex = (replayIndex + 1) % replayLines.length;
+    setTimeout(replayNext, replayInterval);
+  };
+  replayNext();
+} else {
+  serialport.list().then(ports => { ports.forEach(function(port) { console.info(`Available serial port: ${JSON.stringify(port)}`) }); });
+}
 
-var openPort = (function f(reopen) {
+var openPort = replayMode ? null : (function f(reopen) {
   if (reopen && port.isOpen) port.close();
   port = new serialport(settings.serial.port.value, {baudRate : settings.serial.baud.value});
   parser = port.pipe(new serialport.parsers.Readline()); //new serialport.parsers.Readline(); //port.pipe(parser);
@@ -199,6 +220,10 @@ global.sendMessageToNode = function(node) {
 }
 
 global.sendMessageToGateway = function(msg) {
+  if (replayMode) {
+    console.info(`REPLAY MODE: skipped outbound serial message ${msg.replaceNewlines()}`);
+    return;
+  }
   //console.log('sendMessageToGateway: ' + msg.replaceNewlines());
   port.write(msg + '\n', function (err) { 
     if (err) return console.error('port.write error: ', err.message)
@@ -792,6 +817,7 @@ global.handleNodeRequest = function (existingNode, reqName, oldValue, newValue, 
 
 global.msgHistory = new Array();
 global.processSerialData = function (data, simulated) {
+  lastTelemetryAt = Date.now();
   var regexNodeData = /\[(\d+)\]([a-z0-9!"#\$%&'()*+,.\/:;<=>?@\[\] ^_`{|}~-]+)/ig; //modifiers: g:global i:caseinsensitive
   var regexTokenizedLine = /[a-z0-9!"#\$%&'()*+,.\/:;<=>?@\[\]^_`{|}~-]+/ig; //match (almost) any non whitespace human readable character
   var regexpGeneralRequests = /^([_a-z][_a-z0-9]*)(\:[-_a-z0-9]+)?(\:[-_a-z0-9]+)?(\:[-_a-z0-9]+)?$/i; //up to 5 capture groups: [0]whole_string [1]name ([2]:optional value) ([3]:optional status) ([4]:optional extra)
@@ -1047,6 +1073,45 @@ global.processSerialData = function (data, simulated) {
         unmatchedDataDB.insert({_id:Date.now(), data:data});
     }
   }
+}
+
+function gatewayHttpHandler(req, res) {
+  var pathname = url.parse(req.url).pathname;
+  if (pathname === '/healthz') {
+    var token = process.env.GATEWAY_API_TOKEN;
+    if (token && !authorizedRequest(req, token)) {
+      res.writeHead(401, {'Content-Type': 'application/json', 'WWW-Authenticate': 'Bearer'});
+      return res.end(JSON.stringify({status:'error', message:'unauthorized'}));
+    }
+    var telemetryAgeMs = lastTelemetryAt == null ? null : Date.now() - lastTelemetryAt;
+    res.writeHead(200, {'Content-Type': 'application/json', 'Cache-Control': 'no-store'});
+    return res.end(JSON.stringify({
+      status: 'ok',
+      version: packageJson.version,
+      uptimeMs: Date.now() - gatewayStartedAt,
+      replayMode: replayMode,
+      serialPort: replayMode ? null : settings.serial.port.value,
+      lastTelemetryAt: lastTelemetryAt,
+      telemetryAgeMs: telemetryAgeMs
+    }));
+  }
+  if (pathname !== '/httpendpoint' && pathname !== '/httpendpoint/') {
+    res.writeHead(404, {'Content-Type': 'application/json'});
+    return res.end(JSON.stringify({status:'error', message:'not found'}));
+  }
+  var token = process.env.GATEWAY_API_TOKEN;
+  if (token && !authorizedRequest(req, token)) {
+    res.writeHead(401, {'Content-Type': 'application/json', 'WWW-Authenticate': 'Bearer'});
+    return res.end(JSON.stringify({status:'error', message:'unauthorized'}));
+  }
+  return httpEndPointHandler(req, res);
+}
+
+function authorizedRequest(req, token) {
+  var supplied = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  var expected = Buffer.from(token);
+  var actual = Buffer.from(supplied);
+  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
 }
 
 function httpEndPointHandler(req, res) {
