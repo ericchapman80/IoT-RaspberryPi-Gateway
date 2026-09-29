@@ -323,6 +323,21 @@ function buildMetricTile(nodeId, key, metric) {
   return tpl;
 }
 
+// Gateway versions persist pin as either a boolean/0-or-1 flag or the
+// timestamp of the last pin change. Accept both representations so the
+// modern UI renders live gateway data consistently.
+function isPinnedMetric(metric) {
+  return !!(metric && metric.pin !== undefined && metric.pin !== null &&
+    metric.pin !== false && metric.pin !== 0 && metric.pin !== '0');
+}
+
+function metricByNames(metrics, names) {
+  for (const name of names) {
+    if (metrics && metrics[name]) return metrics[name];
+  }
+  return null;
+}
+
 function buildDeviceCard(node) {
   const tpl = q('#tpl-device-card').content.firstElementChild.cloneNode(true);
   tpl.dataset.nodeId = node._id;
@@ -357,7 +372,7 @@ function buildDeviceCard(node) {
   // Metrics
   const host = slot('metrics', tpl);
   const pinned = Object.entries(node.metrics || {})
-    .filter(([k, m]) => m && (m.pin === 1 || m.pin === '1' || m.pin === true) && k !== 'V');
+    .filter(([k, m]) => isPinnedMetric(m) && k !== 'V');
   const chosen = pinned.length ? pinned : Object.entries(node.metrics || {}).slice(0, 4);
   chosen.forEach(([k, m]) => host.appendChild(buildMetricTile(node._id, k, m)));
 
@@ -405,16 +420,16 @@ function renderPinnedGrid() {
 function renderNetwork() {
   const netNodes = Array.from(STATE.nodes.values()).filter(n => {
     const keys = Object.keys(n.metrics || {});
-    return keys.some(k => /^(DOWN|UP|PING)$/i.test(k));
+    return keys.some(k => /^(DOWN|UP|PING|DOWNSPEED|UPSPEED|PINGISP)$/i.test(k));
   });
   const hero = q('#netHero');
   const primary = netNodes[0];
   if (!primary) { hero.hidden = true; q('#netExtraGrid').innerHTML = ''; return; }
   hero.hidden = false;
   const m = primary.metrics;
-  const down = parseFloat((m.DOWN && m.DOWN.value) || 0);
-  const up   = parseFloat((m.UP   && m.UP.value)   || 0);
-  const ping = parseFloat((m.PING && m.PING.value) || 0);
+  const down = parseFloat((metricByNames(m, ['DOWN', 'DOWNSPEED']) || {}).value || 0);
+  const up   = parseFloat((metricByNames(m, ['UP', 'UPSPEED']) || {}).value || 0);
+  const ping = parseFloat((metricByNames(m, ['PING', 'PINGISP']) || {}).value || 0);
   slot('net-down').textContent = isFinite(down) ? down.toFixed(1) : '—';
   slot('net-up').textContent   = isFinite(up)   ? up.toFixed(1)   : '—';
   slot('net-ping').textContent = isFinite(ping) ? Math.round(ping) : '—';
@@ -567,7 +582,7 @@ function buildMetricDetail(node, key, metric) {
   slot('value', tpl).textContent = metric.value != null ? metric.value : '—';
   slot('unit', tpl).textContent = metricUnit(node, key) || '';
 
-  const pin = slot('pin', tpl);   pin.checked   = !!(metric.pin === 1 || metric.pin === '1' || metric.pin === true);
+  const pin = slot('pin', tpl);   pin.checked   = isPinnedMetric(metric);
   const grp = slot('graph', tpl); grp.checked   = !!(metric.graph === 1 || metric.graph === '1' || metric.graph === true);
   pin.addEventListener('change', () => emitMetricSettings(node._id, key, { ...metric, pin: pin.checked ? 1 : 0 }));
   grp.addEventListener('change', () => emitMetricSettings(node._id, key, { ...metric, graph: grp.checked ? 1 : 0 }));
