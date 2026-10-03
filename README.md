@@ -53,6 +53,37 @@ npm test
 The test command exercises fixture coverage for every bundled node module
 without opening the serial device or modifying a database.
 
+### UI modernization: before and after
+
+The existing gateway UI remains available at `/legacy` during the migration.
+The modernization adds a responsive dashboard with live metric cards, device
+navigation, event activity, node detail drawers, sparklines, controls, and a
+settings editor.
+
+| Legacy UI | Modern UI |
+| --- | --- |
+| ![Legacy gateway UI](docs/screenshots/legacy-before.png) | ![Modern gateway UI](docs/screenshots/modern-after.png) |
+
+These images were captured from the upstream legacy baseline and the safe
+preview server. The modern screen is a replay-backed preview; it does not
+claim that the production Pi has already been cut over.
+
+### One-command local setup
+
+Use the checked-in helper for a test-only setup or a hardware-free UI preview:
+
+```bash
+./setup.sh test
+./setup.sh preview
+```
+
+The preview listens on HTTPS port `17443` and uses the development credentials
+`chap` / `chap`. Open `https://localhost:17443/`; the original interface is at
+`https://localhost:17443/legacy/`. The preview never opens the serial device or
+writes the production database. Use `./setup.sh gateway` only on the Pi, after
+backing up its configuration and data and confirming the required native
+`serialport` module is available for that Node/architecture combination.
+
 ### Health and live telemetry
 
 The gateway exposes an authenticated `/healthz` endpoint through nginx. It
